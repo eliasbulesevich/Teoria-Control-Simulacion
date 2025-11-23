@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Simulador Sistema Climatizacion Central- TP Teoría de Control</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f3f6f9;
+            --panel: #ffffff;
+            --accent: #0f66d0;
+            --muted: #6b7280;
+        }
+
+        body {
+            margin: 0;
+            font-family: Inter, Roboto, Arial, sans-serif;
+            background: linear-gradient(180deg, #e9eef6 0%, var(--bg) 100%);
+            color: #111827;
+            display: flex;
+            gap: 24px;
+            padding: 24px;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .thermo {
+            width: 360px;
+            background: var(--panel);
+            border-radius: 14px;
+            box-shadow: 0 6px 18px rgba(18, 38, 63, 0.08);
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand {
+            font-weight: 600;
+            color: var(--muted);
+            font-size: 12px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .display {
+            width: 300px;
+            height: 120px;
+            border-radius: 10px;
+            background: linear-gradient(180deg, #0b2340 0%, #08203b 100%);
+            color: #e6f0ff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: inset 0 -6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .temp-big {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -1px;
+        }
+
+        .label-small {
+            font-size: 12px;
+            color: rgba(230, 240, 255, 0.9);
+            margin-top: 6px;
+        }
+
+        .setpoint-row {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 8px;
+            align-items: center;
+        }
+
+        .set-box {
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .set-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .buttons {
+            margin-top: 6px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #fff;
+            border: none;
+            width: 60px;
+            height: 36px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(2, 6, 23, 0.08);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .controls {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .select,
+        .smallbtn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #e6eef9;
+            background: #fff;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .indicator {
+            margin-top: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #f3f6f9;
+            color: #111827;
+            font-weight: 700;
+            min-width: 220px;
+            text-align: center;
+        }
+
+        .rightcol {
+            width: 580px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .card {
+            width: 100%;
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(18, 38, 63, 0.06);
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .small {
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .big {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        canvas {
+            background: transparent;
+            border-radius: 8px;
+        }
+
+        .note {
+            font-size: 12px;
+            color: #475569;
+            margin-top: 8px;
+        }
+
+        .state-heat {
+            background: linear-gradient(90deg, #ffb366, #ff7a59);
+            color: #2b1b00;
+        }
+
+        .state-cool {
+            background: linear-gradient(90deg, #7fd4ff, #2aa7ff);
+            color: #022b3a;
+        }
+
+        .state-off {
+            background: #eef2ff;
+            color: #1e293b;
+        }
+
+        #fallaIndicator {
+            display: none;
+            background: #ff5c5c;
+            color: white;
+            font-weight: 700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            text-align: center;
+            animation: parpadeo 1s infinite;
+        }
+
+        @keyframes parpadeo {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* Colores de los bloques del diagrama */
+        .block.heat {
+            background: linear-gradient(90deg, #ffb366, #ff7a59);
+            color: white;
+            border-color: #ff7a59;
+        }
+
+        .block.cool {
+            background: linear-gradient(90deg, #7fd4ff, #2aa7ff);
+            color: white;
+            border-color: #2aa7ff;
+        }
+
+
+        #diagramContainer {
+            width: 520px;
+            height: 170px;
+            margin-top: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            margin-right: 800px;
+            position: relative;
+            top: -10px;
+        }
+
+        .block-diagram {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            width: 480px;
+            position: relative;
+            top: -30px;
+        }
+
+        .block {
+            width: 70px;
+            height: 40px;
+            background: #fff;
+            border: 2px solid #94a3b8;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+            z-index: 1;
+            transform: translateY(-43px);
+        }
+
+        .sum-point {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #94a3b8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            background: #fff;
+            transform: translateY(-30px);
+        }
+
+
+        svg {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="thermo card">
+        <div class="brand">
+            <div>Honeywell · TH2110D (sim)</div>
+            <div class="small">TP Teoría de Control</div>
+        </div>
+
+        <div class="display" id="display">
+            <div class="temp-big" id="currentTemp">22.0°C</div>
+            <div class="label-small">Temperatura ambiente</div>
+            <div class="setpoint-row">
+                <div class="set-box">
+                    <div class="label-small">Setpoint</div>
+                    <div class="set-value" id="setpointDisplay">24°C</div>
+                </div>
+                <div class="label-small">Histéresis ±0.5°C</div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn" id="btnUp">▲</button>
+            <button class="btn" id="btnDown">▼</button>
+            <div style="flex:1"></div>
+            <select id="modeSelect" class="select">
+                <option value="off">OFF</option>
+                <option value="heat" selected>HEAT</option>
+                <option value="cool">COOL</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <button id="disturb" class="smallbtn">Abrir ventana (perturb.)</button>
+            <select id="speedSelect" class="select">
+                <option value="1500">Lento</option>
+                <option value="800" selected>Normal</option>
+                <option value="300">Rápido</option>
+            </select>
+            <div style="flex:1"></div>
+            <div class="small">Salida: <span id="outputSpec">24 V CA, 1 A</span></div>
+        </div>
+
+        <div id="actorIndicator" class="indicator state-off">Estado: APAGADO</div>
+        <div id="fallaIndicator">⚠ FALLA: No se puede mantener la temperatura</div>
+        <div class="note small">Pulsa ▲ / ▼ para ajustar la entrada paso 0.5 °C.</div>
+    </div>
+
+    <div class="rightcol">
+        <!--Gráfico -->
+        <div class="card">
+            <div class="row" style="justify-content:space-between;">
+                <div>
+                    <div class="small">Temperatura actual (°C)</div>
+                    <div class="big" id="tempNow">22.0</div>
+                </div>
+                <div>
+                    <div class="small">Setpoint (°C)</div>
+                    <div class="big" id="spNow">23.5</div>
+                </div>
+                <div>
+                    <div class="small">Modo</div>
+                    <div class="big" id="modeNow">HEAT</div>
+                </div>
+                <div>
+                    <div class="small">Actuador</div>
+                    <div class="big" id="actNow">OFF</div>
+                </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between; margin-top:8px;">
+                <div>
+                    <div class="small">Señal f (V)</div>
+                    <div class="big" id="signalF">0.00</div>
+                </div>
+                <div>
+                    <div class="small">Error e (V)</div>
+                    <div class="big" id="signalE">0.00</div>
+                </div>
+            </div>
+
+            <div style="margin-top:12px; position:relative;">
+                <canvas id="chartTemp" height="160"></canvas>
+
+                <!--Botón de captura-->
+                <button id="btnCapture" style="position:absolute; bottom:-40px; right:0; 
+                 background:#0f66d0; color:white; border:none; 
+                 border-radius:8px; padding:6px 10px; 
+                 font-size:13px; cursor:pointer; box-shadow:0 3px 6px rgba(0,0,0,0.15);">
+                    📸 Capturar gráfico
+                </button>
+            </div>
+
+            <div class="note" style="margin-top:40px;">
+                Gráfico de temperatura. Usa "Abrir ventana" para aplicar perturbaciones.
+            </div>
+
+        </div>
+
+        <div class="card" id="diagramContainer">
+            <div class="small" style="margin-bottom:75px;">Diagrama de bloques del sistema</div>
+
+            <div class="block-diagram">
+                <div class="block" id="blockRef">Referencia</div>
+                <div class="sum-point">+</div>
+                <div class="block" id="blockThermo">Termostato</div>
+                <div class="block" id="blockActuator">Actuador</div>
+                <div class="block" id="blockEnv">Ambiente</div>
+
+                <div class="block sensor-block" style="position:absolute; left:240px; top:95px;">Sensor</div>
+
+                <svg width="480" height="170">
+                    <defs>
+                        <marker id="arrowHead" markerWidth="10" markerHeight="8" refX="8" refY="4" orient="auto">
+                            <polygon points="0 0, 8 4, 0 8" fill="#0f66d0" />
+                        </marker>
+                    </defs>
+
+                    <path d="M20,45 L440,45" stroke="#0f66d0" stroke-width="3" fill="none" stroke-dasharray="10 6">
+                        <animate attributeName="stroke-dashoffset" from="20" to="-20" dur="1s"
+                            repeatCount="indefinite" />
+                    </path>
+
+                    <path d="M440,45 L440,140 L125,140 L125,60" stroke="#555" stroke-width="2" fill="none"
+                        marker-end="url(#arrowHead)" />
+                </svg>
+            </div>
+        </div>
+
+
+        <script>
+            let T_env = 23.0;
+            let setpoint = 24;
+            const h = 0.5;
+            let mode = 'heat';
+            let actuator = 'off';
+            let windowOpen = false;
+            let perturbBaseTemp = null;
+            let simInterval = 800;
+            let time = 0;
+            const k_heat = 0.07;
+            const k_cool = 0.07;
+            const outsideTemp = 10.0;
+            let failCounter = 0;
+            let lastActuatorState = 'off';
+            let inFailure = false;
+            const failThreshold = 60;
+
+            const currentTempEl = document.getElementById('currentTemp');
+            const setpointDisplay = document.getElementById('setpointDisplay');
+            const btnUp = document.getElementById('btnUp');
+            const btnDown = document.getElementById('btnDown');
+            const modeSelect = document.getElementById('modeSelect');
+            const actorIndicator = document.getElementById('actorIndicator');
+            const tempNow = document.getElementById('tempNow');
+            const spNow = document.getElementById('spNow');
+            const modeNow = document.getElementById('modeNow');
+            const actNow = document.getElementById('actNow');
+            const signalF = document.getElementById('signalF');
+            const signalE = document.getElementById('signalE');
+            const speedSelect = document.getElementById('speedSelect');
+            const disturbBtn = document.getElementById('disturb');
+            const fallaIndicator = document.getElementById('fallaIndicator');
+            const blockThermo = document.getElementById('blockThermo');
+            const blockActuator = document.getElementById('blockActuator');
+            const blockEnv = document.getElementById('blockEnv');
+
+            //Función para actualizar colores del diagrama
+            function updateDiagramColors() {
+                [blockThermo, blockActuator, blockEnv].forEach(b => {
+                    b.classList.remove('heat', 'cool');
+                });
+
+                // Si el actuador está activo, color para actuador y ambiente
+                if (actuator === 'heat') {
+                    blockActuator.classList.add('heat');
+                    blockEnv.classList.add('heat');
+                } else if (actuator === 'cool') {
+                    blockActuator.classList.add('cool');
+                    blockEnv.classList.add('cool');
+                }
+
+                // Detectar cambio de estado (encendido o apagado)
+                if (actuator !== lastActuatorState) {
+                    if (actuator === 'heat') {
+                        blockThermo.classList.add('heat');
+                        blockThermo.style.opacity = '0.5';
+                        setTimeout(() => { blockThermo.style.opacity = '1'; blockThermo.classList.remove('heat'); }, 800);
+                    } else if (actuator === 'cool') {
+                        blockThermo.classList.add('cool');
+                        blockThermo.style.opacity = '0.5';
+                        setTimeout(() => { blockThermo.style.opacity = '1'; blockThermo.classList.remove('cool'); }, 800);
+                    } else if (lastActuatorState === 'heat' || lastActuatorState === 'cool') {
+                        const prevClass = lastActuatorState === 'heat' ? 'heat' : 'cool';
+                        blockThermo.classList.add(prevClass);
+                        blockThermo.style.opacity = '0.5';
+                        setTimeout(() => { blockThermo.style.opacity = '1'; blockThermo.classList.remove(prevClass); }, 800);
+                    }
+                    lastActuatorState = actuator;
+                }
+            }
+
+
+
+            function updateActuator() {
+                if (mode === 'heat') {
+                    if (T_env < setpoint - h) actuator = 'heat';
+                    else if (T_env > setpoint + h) actuator = 'off';
+                } else if (mode === 'cool') {
+                    if (T_env > setpoint + h) actuator = 'cool';
+                    else if (T_env < setpoint - h) actuator = 'off';
+                } else actuator = 'off';
+            }
+
+            function simulateTick() {
+                updateActuator();
+
+                if (actuator === 'heat') {
+                    T_env += windowOpen ? k_heat * 0.2 : k_heat;
+                    if (windowOpen) T_env += (outsideTemp - T_env) * 0.03;
+                } else if (actuator === 'cool') {
+                    T_env -= windowOpen ? k_cool * 0.2 : k_cool;
+                    if (windowOpen) T_env += (30 - T_env) * 0.03;
+                } else {
+                    if (windowOpen) {
+                        if (mode === 'cool') T_env += (30 - T_env) * 0.02;
+                        else if (mode === 'heat') T_env += (outsideTemp - T_env) * 0.02;
+                    } else {
+                        const ambientDrift = (mode === 'heat')
+                            ? (outsideTemp - T_env) * 0.001
+                            : (30 - T_env) * 0.001;
+                        T_env += ambientDrift;
+                    }
+                }
+
+
+
+                if (T_env < -10) T_env = -10;
+                if (T_env > 50) T_env = 50;
+
+                const error = Math.abs(T_env - setpoint);
+                if (windowOpen && error > 0.4) { failCounter++; if (failCounter > failThreshold) inFailure = true; }
+                else { failCounter = 0; inFailure = false; }
+                fallaIndicator.style.display = inFailure ? 'block' : 'none';
+                render();
+                pushToChart();
+            }
+
+            function render() {
+                currentTempEl.textContent = T_env.toFixed(1) + '°C';
+                setpointDisplay.textContent = setpoint.toFixed(1) + '°C';
+                tempNow.textContent = T_env.toFixed(1);
+                spNow.textContent = setpoint.toFixed(1);
+                modeNow.textContent = mode.toUpperCase();
+                actNow.textContent = actuator.toUpperCase();
+                actorIndicator.className = 'indicator ' + (actuator === 'heat' ? 'state-heat' : actuator === 'cool' ? 'state-cool' : 'state-off');
+                actorIndicator.textContent = actuator === 'heat' ? 'Estado: CALEFACCIÓN' : actuator === 'cool' ? 'Estado: REFRIGERACIÓN' : 'Estado: APAGADO';
+                // --- Señales del sistema ---
+                // f = temperatura sensada pasada a voltaje (0-5V ↔ 0-50°C)
+                const f = (T_env / 50) * 5;
+                // e = diferencia entre la referencia (setpoint) y la señal f
+                const e = ((setpoint / 50) * 5) - f;
+
+                signalF.textContent = f.toFixed(2);
+                signalE.textContent = e.toFixed(2);
+
+                updateDiagramColors();
+            }
+
+            btnUp.onclick = () => { setpoint = parseFloat((setpoint + 0.5).toFixed(1)); render(); pushSetpointToChart(); };
+            btnDown.onclick = () => { setpoint = parseFloat((setpoint - 0.5).toFixed(1)); render(); pushSetpointToChart(); };
+            modeSelect.onchange = () => { mode = modeSelect.value; render(); };
+            speedSelect.onchange = () => { simInterval = parseInt(speedSelect.value); restartSimulation(); };
+            disturbBtn.onclick = () => {
+                windowOpen = !windowOpen;
+                disturbBtn.textContent = windowOpen ? 'Cerrar ventana' : 'Abrir ventana (perturb.)';
+                disturbBtn.style.background = windowOpen ? '#ffe6e6' : '';
+
+                if (windowOpen) {
+                    perturbBaseTemp = T_env;
+                } else {
+                    perturbBaseTemp = null;
+                }
+            };
+
+            const ctx = document.getElementById('chartTemp').getContext('2d');
+            const chartData = {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Temperatura (°C)',
+                        data: [],
+                        borderColor: '#0f66d0',
+                        tension: 0.15,
+                        pointRadius: 0,
+                        yAxisID: 'y', // eje izquierdo
+                    },
+                    {
+                        label: 'Setpoint (°C)',
+                        data: [],
+                        borderColor: '#ff6b6b',
+                        borderDash: [6, 4],
+                        tension: 0.05,
+                        pointRadius: 0,
+                        yAxisID: 'y', // eje izquierdo
+                    },
+                    {
+                        label: 'Señal f (V)',
+                        data: [],
+                        borderColor: '#00bfa6',
+                        borderDash: [4, 2],
+                        tension: 0.15,
+                        pointRadius: 0,
+                        yAxisID: 'y1', // eje derecho
+                    },
+                    {
+                        label: 'Error e (V)',
+                        data: [],
+                        borderColor: '#ff9800',
+                        borderDash: [2, 2],
+                        tension: 0.15,
+                        pointRadius: 0,
+                        yAxisID: 'y1', // eje derecho
+                    },
+                    {
+                        label: 'Perturbación (°C)',
+                        data: [],
+                        borderColor: '#9c27b0',
+                        borderDash: [5, 3],
+                        tension: 0.15,
+                        pointRadius: 0,
+                        yAxisID: 'y', // eje izquierdo (temperatura)
+                    },
+                    {
+                        label: 'Salida del controlador u(t)',
+                        data: [],
+                        borderColor: '#000',
+                        borderDash: [2, 4],
+                        tension: 0,
+                        pointRadius: 0,
+                        yAxisID: 'y1', // eje derecho
+                    },
+                    {
+                        label: 'Setpoint + Desvio',
+                        data: [],
+                        borderColor: '#888',   // gris
+                        borderDash: [6, 3],
+                        tension: 0,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Setpoint - Desvio',
+                        data: [],
+                        borderColor: '#555',   // gris oscuro
+                        borderDash: [6, 3],
+                        tension: 0,
+                        pointRadius: 0,
+                        yAxisID: 'y'
+                    }
+                ]
+            };
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: chartData,
+                options: {
+                    animation: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Tiempo (s)' },
+                            ticks: {
+                                stepSize: 1,
+                                callback: function (value, index) {
+                                    return index + 1;
+                                }
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: { display: true, text: 'Temperatura (°C)' },
+                            suggestedMin: 10,
+                            suggestedMax: 30
+                        },
+                        y1: {
+                            type: 'linear',
+                            position: 'right',
+                            title: { display: true, text: 'Voltaje (V)' },
+                            min: -0.5,
+                            max: 5,
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    elements: { line: { borderWidth: 2 } }
+                },
+                plugins: [{
+                    id: 'whiteBackground',
+                    beforeDraw: (chartInstance) => {
+                        const { ctx, width, height } = chartInstance;
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'destination-over';
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.restore();
+                    }
+                }]
+            });
+
+            function pushToChart() {
+                time += 1;
+
+                const f = (T_env / 50) * 5;
+                const e = ((setpoint / 50) * 5) - f;
+
+                chart.data.labels.push(time);
+                chart.data.datasets[0].data.push(T_env);
+                chart.data.datasets[1].data.push(setpoint);
+                chart.data.datasets[6].data.push(setpoint + h);
+                chart.data.datasets[7].data.push(setpoint - h);
+                chart.data.datasets[2].data.push(f);
+                chart.data.datasets[3].data.push(e);
+
+                const u = (actuator === 'heat' || actuator === 'cool') ? 1 : 0;
+                chart.data.datasets[5].data.push(u);
+
+
+
+                let perturbacion = 0;
+                if (perturbBaseTemp !== null) {
+                    perturbacion = T_env - perturbBaseTemp;
+                }
+
+                chart.data.datasets[4].data.push(perturbacion);
+
+                // --- Limitar longitud de datos ---
+                if (chart.data.labels.length > 300) {
+                    chart.data.labels.shift();
+                    chart.data.datasets.forEach(d => d.data.shift());
+                }
+
+                chart.update('none');
+
+                const visiblePoints = 60;
+                if (chart.data.labels.length > visiblePoints) {
+                    chart.options.scales.x.min = chart.data.labels.length - visiblePoints;
+                    chart.options.scales.x.max = chart.data.labels.length;
+                } else {
+                    chart.options.scales.x.min = 0;
+                    chart.options.scales.x.max = visiblePoints;
+                }
+                chart.update('none');
+            }
+
+            function pushSetpointToChart() {
+                if (chart.data.labels.length > 0) {
+
+                    const i = chart.data.datasets[1].data.length - 1;
+
+                    chart.data.datasets[1].data[i] = setpoint;       // Setpoint
+                    chart.data.datasets[6].data[i] = setpoint + h;   // Setpoint + histeresis
+                    chart.data.datasets[7].data[i] = setpoint - h;   // Setpoint - histeresis
+                }
+            }
+
+            let loopHandle = null;
+
+            function startSimulation() {
+                chart.data.labels = [];
+                chart.data.datasets.forEach(d => d.data = []);
+                time = 0;
+                chart.update();
+
+                if (loopHandle) clearInterval(loopHandle);
+                loopHandle = setInterval(simulateTick, simInterval);
+            }
+
+            function restartSimulation() {
+                startSimulation();
+            }
+
+            // --- Captura del gráfico como imagen ---
+            document.getElementById('btnCapture').onclick = () => {
+                const link = document.createElement('a');
+                link.download = `grafico_termometro_${new Date().toISOString().replace(/[:.]/g, '-')}.png`;
+                link.href = chart.toBase64Image(); // convierte el gráfico en PNG
+                link.click(); // fuerza descarga
+            };
+
+            render();
+            startSimulation();
+
+        </script>
+</body>
+
+</html>
